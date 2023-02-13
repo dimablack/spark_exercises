@@ -1,0 +1,10 @@
+{
+    "input_register": "./input/register.csv",
+    "input_stations": "./input/stations.csv",
+    "output_results": "./output/criticality",
+    "criticality_limit": 15,
+    "display_amount": 200
+
+
+
+}

@@ -16,10 +16,8 @@ in the cluster.
 
 import argparse
 import os
-import re
 import shutil
 from operator import add
-from pathlib import Path
 
 from pyspark import SparkContext, RDD, SparkFiles
 from itertools import combinations
@@ -28,28 +26,29 @@ from common.spark import start_spark
 
 def main() -> None:
 	spark, logger = start_spark(
-		app_name='Word Count',
+		app_name='Top K Count',
 		master='spark://localhost:7077',
 		spark_config={
 			"spark.driver.host": "localhost"
 		})
 	
-	logger.info("Word Count is running")
+	logger.info("Top K Count is running")
 	
 	args = parse_args()
 	
 	url = args.url
 	input_path = args.input_path
-	
+	# input_path = '../input/Sample.csv'
+	# url = None
 	data = extract_data(spark, input_path, url)
 	
 	data_transformed = transform_data(data)
 	
 	# exit()
-	load_data(data_transformed)
+	load_data(spark, data_transformed)
 	
 	# log the success and terminate Spark application
-	logger.info('Word Count is finished')
+	logger.info('Top K Count is finished')
 	
 	spark.stop()
 
@@ -57,9 +56,9 @@ def main() -> None:
 def parse_args() -> argparse.Namespace:
 	parser = argparse.ArgumentParser(description='Important job arguments')
 	parser.add_argument('--input_path', type=str, required=False, dest='input_path',
-	                    help='Path to the input file for word count')
+	                    help='Path to the input file for top k count')
 	parser.add_argument('--url', type=str, required=False, dest='url',
-	                    help='Url to the input file for word count')
+	                    help='Url to the input file for top k count')
 	
 	return parser.parse_args()
 
@@ -78,7 +77,8 @@ def transform_data(lines: RDD) -> RDD:
 	# remove header
 	lines = lines.filter(lambda row: header != row)
 	# group products by userId
-	lines = lines.groupByKey().mapValues(set)
+	# lines = lines.groupByKey().mapValues(set)
+	lines = lines.distinct()
 	# get only products tuple
 	lines = lines.map(lambda row: tuple(row[1]))
 	# filtering single product buying
@@ -99,13 +99,13 @@ def transform_data(lines: RDD) -> RDD:
 	return lines
 
 
-def load_data(counts: RDD) -> None:
+def load_data(spark: SparkContext, counts: RDD) -> None:
 	# Save to file
 	outpath = './output/top_k'
 	if os.path.exists(outpath) and os.path.isdir(outpath):
 		shutil.rmtree(outpath)
-	# data_to_save = counts
-	# data_to_save.saveAsTextFile(outpath)
+	data_to_save = spark.parallelize(counts.take(100))
+	data_to_save.saveAsTextFile(outpath)
 	
 	# Print result
 	lines = (

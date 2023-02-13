@@ -13,7 +13,7 @@ def start_spark_local(
 		app_name: Optional[str] = 'sample_job',
 		jar_packages=[],
 		files=[],
-		spark_config = {},
+		spark_config={},
 		master: Optional[str] = None
 ) -> Tuple[SparkContext, logging.Log4py]:
 	if not master:
@@ -52,12 +52,29 @@ def start_spark(
 	
 	for k, v in spark_config.items():
 		config.set(k, v)
-		
+	
 	sc = SparkContext.getOrCreate(conf=config)
 	
 	logger = logging.Log4py(sc)
 	
 	return sc, logger
+
+
+def real_start_spark_local(
+		number_cores: int = 2,
+		memory_gb: int = 4,
+		app_name: Optional[str] = "sample_job",
+		jar_packages=[],
+		files=[],
+		spark_config={}) -> Tuple[SparkSession, logging.Log4py, Optional[dict]]:
+	master = f"local[{number_cores}]"
+	spark_config.update({"spark.driver.memory": f"{memory_gb}g"})
+	return real_start_spark(
+		app_name=app_name,
+		master=master,
+		jar_packages=jar_packages,
+		files=files,
+		spark_config=spark_config)
 
 
 def real_start_spark(
