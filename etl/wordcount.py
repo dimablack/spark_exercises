@@ -26,23 +26,29 @@ from common.spark import start_spark
 
 
 def main() -> None:
-	
 	spark, logger = start_spark(
 		app_name='Word Count',
 		master='spark://localhost:7077',
 		spark_config={
 			"spark.driver.host": "localhost"
 		})
-
-	logger.info("Word Count is running")
-
-	args = parse_args()
 	
-	letters = args.start_with
-	letter_limit = args.letter_limit if args.letter_limit is not None else 0
-	greater_than = args.greater_than
-	input_path = args.input_path
-	url = args.url
+	logger.info("Word Count is running")
+	
+	# args = parse_args()
+	
+	# letters = args.start_with
+	# letter_limit = args.letter_limit if args.letter_limit is not None else 0
+	# greater_than = args.greater_than
+	# input_path = args.input_path
+	# url = args.url
+	
+	input_path = '../input/sample.txt'
+	url = None
+	letters = 'and'
+	letters = None
+	greater_than = 60
+	letter_limit = 0
 	
 	data = extract_data(spark, input_path, url)
 	data_transformed = transform_data(
@@ -87,41 +93,49 @@ def extract_data(spark: SparkContext, input_path: str, url: str = None) -> RDD:
 
 
 def transform_data(lines: RDD, letters: str = None, greater_than: int = None, limit: int = 0) -> RDD:
-	# Filter only words
-	lines = lines \
-		.flatMap(lambda line: line.split(" ")) \
-		.filter(lambda word: re.search('[a-zA-Z]', word) is not None) \
-		.map(lambda word: re.sub('[^0-9a-zA-Z]+', '', word))
+	lines = split_by_words(lines)
 	
-	# Filter start word with letters
-	if letters is not None:
-		letters = letters.lower()
-		lL = len(letters)
-		lines = lines \
-			.filter(lambda word: word[0:lL].lower().strip() == letters if len(word) >= lL else False)
-	
-	# Filter count word letter
 	if limit > 0:
-		lines = lines \
-			.flatMap(lambda line: re.split('\W+', line.lower().strip())) \
-			.filter(lambda x: len(x) >= limit)
+		lines = filter_by_word_length(lines, limit)
 	
-	lines = lines.map(lambda w: (w, 1)) \
-		.reduceByKey(add)
+	if letters is not None:
+		lines = filter_word_start_with(lines, letters)
 	
-	# Filter word quantity greater than of the maximum quantity in this sample
+	lines = sum_each_word(lines)
+	
 	if greater_than is not None:
-		max_word_count = (
-			lines
-			.map(lambda x: (x[1], x[0]))
-			.sortByKey(False)
-			.take(1)
-		)
-		if len(max_word_count) == 1:
-			max_word_count = max_word_count[0][0]
-			lines = lines.filter(lambda el: (el[1] / max_word_count) > (greater_than * .01))
-	
+		lines = get_greater_than(lines, greater_than)
+		
 	return lines
+
+
+def get_greater_than(lines, greater_than):
+	""" Filter word quantity greater than of the maximum quantity in this sample """
+	max_word_count = lines.map(lambda x: x[1]).max()
+	if max_word_count > 1:
+		return lines.filter(lambda el: (el[1] / max_word_count) > (greater_than * .01))
+	return lines
+
+
+def sum_each_word(lines):
+	"""Calculate the number of each word"""
+	return lines.map(lambda w: (w, 1)).reduceByKey(add)
+
+
+def filter_word_start_with(lines, letters):
+	""" Filter words by initial letters """
+	return lines.filter(lambda word: word.lower().startswith(letters.lower()))
+
+
+def filter_by_word_length(lines, limit):
+	""" Filter count word letter """
+	return lines.filter(lambda x: len(x) >= limit)
+
+
+def split_by_words(lines):
+	""" Split by words """
+	return lines.flatMap(lambda line: re.split('\W+', line.lower().strip())) \
+		.filter(lambda word: re.search('[a-zA-Z]', word) is not None)
 
 
 def load_data(counts: RDD, greater_than: int = None) -> None:
@@ -131,7 +145,7 @@ def load_data(counts: RDD, greater_than: int = None) -> None:
 		outpath = '../output/wordcount'
 		if os.path.exists(outpath) and os.path.isdir(outpath):
 			shutil.rmtree(outpath)
-		data_to_save = counts\
+		data_to_save = counts \
 			.map(lambda x: x[0])
 		data_to_save.saveAsTextFile(outpath)
 	
