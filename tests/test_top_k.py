@@ -4,8 +4,10 @@ job defined in wordcount.py. It makes use of a local version of PySpark
 that is bundled with the PySpark package.
 """
 import os
+import time
 import unittest
 import csv
+import warnings
 
 from pyspark import SparkConf, SparkContext
 from etl.top_k import transform_data, extract_data
@@ -17,11 +19,10 @@ class SparkTopKTests(unittest.TestCase):
 	
 	@classmethod
 	def setUpClass(cls):
+		warnings.filterwarnings(action='ignore', category=ResourceWarning)
 		config = (SparkConf()
 		          .setAppName('Unit test')
-		          .setMaster('spark://localhost:7077'))
-		# .setMaster('local[2]'))
-		config.set("spark.driver.host", "localhost")
+		          .setMaster('local[2]'))
 		cls.spark = SparkContext.getOrCreate(config)
 		
 		header = ['Id', 'ProductId', 'UserId', 'Title']
@@ -54,14 +55,15 @@ class SparkTopKTests(unittest.TestCase):
 		### Arrange
 		input_rdd = extract_data(self.spark, self.input)
 		expected = self.spark.parallelize([(('P1', 'P2'), 2), (('P1', 'P3'), 2)]).collect()
-		
+		time.sleep(4)
 		### Act
 		actual = transform_data(input_rdd)
-		
+		time.sleep(4)
 		### Assert
 		result = actual.collect()
 		self.assertTrue([word in expected for word in result])
-		self.assertTrue(expected[1][0], result[1][0])
+		self.assertEqual(expected[1][0], result[1][0])
+		time.sleep(4)
 
 
 if __name__ == '__main__':

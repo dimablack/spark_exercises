@@ -35,20 +35,13 @@ def main() -> None:
 	
 	logger.info("Word Count is running")
 	
-	# args = parse_args()
+	args = parse_args()
 	
-	# letters = args.start_with
-	# letter_limit = args.letter_limit if args.letter_limit is not None else 0
-	# greater_than = args.greater_than
-	# input_path = args.input_path
-	# url = args.url
-	
-	input_path = '../input/sample.txt'
-	url = None
-	letters = 'and'
-	letters = None
-	greater_than = 60
-	letter_limit = 0
+	letters = args.start_with
+	letter_limit = args.letter_limit if args.letter_limit is not None else 0
+	greater_than = args.greater_than
+	input_path = args.input_path
+	url = args.url
 	
 	data = extract_data(spark, input_path, url)
 	data_transformed = transform_data(
