@@ -54,9 +54,9 @@ def main() -> None:
 	spark.stop()
 
 
-def transform_data(spark: SparkSession, db_register: DataFrame, db_station: DataFrame,
+def transform_data(spark: SparkSession, df_register: DataFrame, df_station: DataFrame,
                    criticality_limit: float) -> DataFrame:
-	db_register = db_register.withColumn(
+	df_register = df_register.withColumn(
 		'used_slots',
 		F.when(F.col('used_slots').cast("int").isNotNull(), F.col('used_slots'))
 		.otherwise(0)
@@ -77,16 +77,16 @@ def transform_data(spark: SparkSession, db_register: DataFrame, db_station: Data
 		"hour",
 		F.date_format('timestamp', 'H')
 	)
-	db_register = db_register.groupBy('station', 'dayofweek', 'number_dayofweek', 'hour').agg(
+	df_register = df_register.groupBy('station', 'dayofweek', 'number_dayofweek', 'hour').agg(
 		F.count('*').alias("total_rows"),
 		F.sum(F.when(F.col('free_slots') == 0, 1).otherwise(0)).alias("busy_hours"),
 	)
-	db_register = db_register.withColumn(
+	df_register = df_register.withColumn(
 		"criticality",
 		F.col('busy_hours') / F.col('total_rows')
 	)
-	result = db_register.join(
-		db_station, db_register.station == db_station.id,
+	result = df_register.join(
+		df_station, df_register.station == df_station.id,
 		'leftouter'
 	).drop('id', 'name')
 	# .where(F.col('criticality') >= criticality_limit)
@@ -109,7 +109,7 @@ def extract_data(spark: SparkSession, config: dict) -> Tuple[DataFrame, DataFram
 	"""
 	Table name is hardcoded
 	"""
-	db_register = (
+	df_register = (
 		spark
 		.read
 		.load(
@@ -120,7 +120,7 @@ def extract_data(spark: SparkSession, config: dict) -> Tuple[DataFrame, DataFram
 			delimiter="\t"
 		)
 	)
-	db_stations = (
+	df_stations = (
 		spark
 		.read
 		.load(
@@ -131,7 +131,7 @@ def extract_data(spark: SparkSession, config: dict) -> Tuple[DataFrame, DataFram
 		)
 	)
 	
-	return db_register, db_stations
+	return df_register, df_stations
 
 
 def load_data(results: DataFrame, config: dict) -> None:
