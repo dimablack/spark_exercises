@@ -14,17 +14,10 @@ which need to be made available to each executor process on every node
 in the cluster.
 """
 
-import argparse
-import os
-import re
-import shutil
-from operator import add
-from pathlib import Path
 from typing import Tuple
 
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F
-# from pyspark.sql.functions import desc, asc, round, date_format, col, dayofweek
 from common.spark import real_start_spark_local
 
 
@@ -33,7 +26,6 @@ def main() -> None:
 	spark, logger, config = real_start_spark_local(
 		number_cores=1,
 		app_name='Spark SQL',
-		# jar_packages=["org.xerial:sqlite-jdbc:3.40.0.0"],
 		files=["./configs/spark_sql_cfg.json"],
 		# override default hostname taken from system
 		spark_config={
